@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termo de Responsabilidade - Escola</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @media print {
             .no-print { display: none !important; }
-            body { background: white; margin: 0; padding: 20px; font-size: 12pt; line-height: 1.6; }
+            body { background: white; margin: 0; padding: 20px; font-size: 12pt; line-height: 1.7; }
             .documento { box-shadow: none; border: none; width: 100%; }
         }
 
@@ -19,7 +21,6 @@
             display: inline-block;
         }
 
-        /* Botão de acesso gerenciador */
         .botao-gerenciador {
             position: fixed;
             top: 1rem;
@@ -39,7 +40,6 @@
             background: #1e3a8a;
         }
 
-        /* Modal de login para gerenciadores */
         #modalLogin {
             display: none;
             position: fixed;
@@ -62,7 +62,6 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        /* Área de administração */
         #areaGerenciador {
             display: none;
             background: #eff6ff;
@@ -88,24 +87,16 @@
             margin: 1rem 0;
         }
 
+        .area-bugs {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
         .disponivel { color: #15803d; font-weight: 500; }
         .em-uso { color: #b45309; font-weight: 500; }
-
-        .preview-container {
-            margin: 0.5rem 0;
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #f9f9f9;
-            text-align: center;
-            display: none;
-        }
-
-        .preview-container img {
-            max-width: 240px;
-            max-height: 120px;
-            background: white;
-        }
 
         .btn {
             padding: 0.4rem 0.8rem;
@@ -122,29 +113,6 @@
         .btn-gray { background: #6b7280; color: white; }
         .btn-yellow { background: #eab308; color: #1e1b4b; }
         .btn-purple { background: #9333ea; color: white; }
-
-        #cameraModal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-
-        #cameraVideo {
-            max-width: 90%;
-            max-height: 70vh;
-            border: 3px solid white;
-            border-radius: 8px;
-        }
-
-        #cameraCanvas { display: none; }
 
         .obrigatorio::after {
             content: " *";
@@ -172,325 +140,294 @@
             text-align: center;
             display: none;
         }
+
+        .lista-bugs {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .documento {
+            font-family: 'Times New Roman', serif;
+            font-size: 12pt;
+            line-height: 1.7;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
 
-    <!-- Botão de acesso para gerenciadores -->
-    <button class="botao-gerenciador no-print" onclick="abrirLoginGerenciador()" title="Acesso restrito para gerenciadores">🔧 Área do Gerenciador</button>
+    <button class="botao-gerenciador no-print" onclick="abrirLoginGerenciador()">🔧 Área do Gerenciador</button>
 
-    <!-- Modal de Login do Gerenciador -->
     <div id="modalLogin">
         <div class="card-login">
             <h3 class="text-center text-lg font-bold mb-4">Acesso Restrito</h3>
             <div class="mb-3">
-                <label for="userGerenciador" class="block mb-1 font-medium">Usuário:</label>
-                <input type="text" id="userGerenciador" class="w-full p-2 border rounded" placeholder="Digite seu usuário" title="Campo de usuário do gerenciador">
+                <label class="block mb-1 font-medium">Usuário:</label>
+                <input type="text" id="userGerenciador" class="w-full p-2 border rounded" placeholder="Digite seu usuário">
             </div>
             <div class="mb-4">
-                <label for="senhaGerenciador" class="block mb-1 font-medium">Senha:</label>
-                <input type="password" id="senhaGerenciador" class="w-full p-2 border rounded" placeholder="Digite sua senha" title="Campo de senha do gerenciador">
+                <label class="block mb-1 font-medium">Senha:</label>
+                <input type="password" id="senhaGerenciador" class="w-full p-2 border rounded" placeholder="Digite sua senha">
             </div>
-            <div id="erroLogin" class="erro-login">Acesso negado! Verifique usuário e senha.</div>
+            <div id="erroLogin" class="erro-login">Acesso negado! Verifique os dados.</div>
             <div class="flex gap-2">
-                <button onclick="validarAcessoGerenciador()" class="w-full btn btn-green" title="Entrar na área de gerenciamento">Entrar</button>
-                <button onclick="fecharLoginGerenciador()" class="w-full btn btn-gray" title="Fechar janela de login">Fechar</button>
+                <button onclick="validarAcessoGerenciador()" class="w-full btn btn-green">Entrar</button>
+                <button onclick="fecharLoginGerenciador()" class="w-full btn btn-gray">Fechar</button>
             </div>
         </div>
     </div>
 
-    <!-- Área de Configuração e Controle (só aparece após login) -->
     <div id="areaGerenciador" class="max-w-5xl mx-auto">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold">Gerenciamento do Sistema</h2>
-            <button onclick="sairAreaGerenciador()" class="btn btn-red" title="Sair da área restrita">Sair da Área Restrita</button>
+            <button onclick="sairAreaGerenciador()" class="btn btn-red">Sair da Área Restrita</button>
         </div>
 
-        <!-- Dados da Diretoria / Escola -->
         <div class="dados-diretoria">
-            <h3 class="font-semibold mb-3">📋 Dados da Escola e Diretoria</h3>
+            <h3 class="font-semibold mb-3">📋 DIREÇÃO / REPRESENTANTE DA UNIDADE ESCOLAR</h3>
             <div class="grid md:grid-cols-2 gap-3">
                 <div>
-                    <label for="nomeEscola" class="block mb-1 font-medium">Nome da Escola:</label>
-                    <input type="text" id="nomeEscola" class="w-full p-2 border rounded" placeholder="Nome completo da escola" title="Nome da instituição de ensino">
+                    <label class="block mb-1 font-medium">Nome da Escola:</label>
+                    <input type="text" id="nomeEscola" class="w-full p-2 border rounded">
                 </div>
                 <div>
-                    <label for="enderecoEscola" class="block mb-1 font-medium">Endereço:</label>
-                    <input type="text" id="enderecoEscola" class="w-full p-2 border rounded" placeholder="Endereço completo" title="Localização da escola">
+                    <label class="block mb-1 font-medium">Endereço:</label>
+                    <input type="text" id="enderecoEscola" class="w-full p-2 border rounded">
                 </div>
                 <div>
-                    <label for="cidadeEstado" class="block mb-1 font-medium">Cidade / Estado:</label>
-                    <input type="text" id="cidadeEstado" class="w-full p-2 border rounded" placeholder="Ex: Belém / PA" title="Cidade e estado da escola">
+                    <label class="block mb-1 font-medium">Cidade / Estado:</label>
+                    <input type="text" id="cidadeEstado" class="w-full p-2 border rounded">
                 </div>
                 <div>
-                    <label for="telefoneEscola" class="block mb-1 font-medium">Telefone:</label>
-                    <input type="text" id="telefoneEscola" class="w-full p-2 border rounded" placeholder="(91) 99999-9999" title="Telefone para contato">
+                    <label class="block mb-1 font-medium">Telefone:</label>
+                    <input type="text" id="telefoneEscola" class="w-full p-2 border rounded">
                 </div>
                 <div>
-                    <label for="nomeDiretorAdmin" class="block mb-1 font-medium">Nome do Representante:</label>
-                    <input type="text" id="nomeDiretorAdmin" class="w-full p-2 border rounded" placeholder="Nome completo" title="Nome do responsável legal">
+                    <label class="block mb-1 font-medium">Nome do Representante:</label>
+                    <input type="text" id="nomeDiretorAdmin" class="w-full p-2 border rounded">
                 </div>
                 <div>
-                    <label for="cargoDiretorAdmin" class="block mb-1 font-medium">Cargo:</label>
-                    <input type="text" id="cargoDiretorAdmin" class="w-full p-2 border rounded" placeholder="Ex: Diretor(a) Escolar" title="Cargo do representante">
+                    <label class="block mb-1 font-medium">Cargo:</label>
+                    <input type="text" id="cargoDiretorAdmin" class="w-full p-2 border rounded">
                 </div>
             </div>
             <div class="mt-3 flex gap-2">
-                <button onclick="salvarDadosDiretoria()" class="btn btn-green" title="Salvar dados da escola e diretoria">Salvar Dados</button>
-                <button onclick="preencherTeste()" class="btn btn-purple" title="Preencher todos os campos com dados de exemplo para teste">📝 Preencher para Teste</button>
+                <button onclick="salvarDadosDiretoria()" class="btn btn-green">Salvar Dados</button>
+                <button onclick="preencherTeste()" class="btn btn-purple">📝 Preencher para Teste</button>
             </div>
         </div>
 
-        <!-- Status dos equipamentos -->
         <div class="status-equipamentos">
-            <h3 class="font-semibold mb-2">Situação dos Notebooks:</h3>
+            <h3 class="font-semibold mb-2">📊 Equipamentos Cadastrados</h3>
             <ul id="listaStatus" class="list-disc pl-5 text-sm"></ul>
         </div>
 
-        <!-- Seleção e ações -->
         <div class="mb-4">
-            <label for="selecionarEquipamento" class="block mb-2 font-medium">Escolha o Notebook:</label>
-            <select id="selecionarEquipamento" class="w-full p-2 border rounded" onchange="preencherDadosEquipamento()" title="Selecione um equipamento para gerenciar">
+            <label class="block mb-2 font-medium">Selecione o Equipamento:</label>
+            <select id="selecionarEquipamento" class="w-full p-2 border rounded" onchange="preencherDadosEquipamento()">
                 <option value="">-- Selecione --</option>
             </select>
         </div>
 
         <div class="flex flex-wrap gap-2 mb-4">
-            <button onclick="marcarComoEmUso()" class="btn btn-green" title="Marcar equipamento como em uso">Confirmar Uso</button>
-            <button onclick="marcarComoDevolvido()" class="btn btn-gray" title="Marcar equipamento como devolvido e disponível">Marcar como Devolvido</button>
-            <button onclick="abrirFormCadastro()" class="btn btn-blue" title="Cadastrar novo equipamento">Adicionar Novo Equipamento</button>
-            <button onclick="abrirFormEdicao()" class="btn btn-yellow" title="Editar dados do equipamento selecionado">Editar Equipamento</button>
-            <button onclick="confirmarExclusao()" class="btn btn-red" title="Excluir o equipamento selecionado">Excluir Equipamento</button>
+            <button onclick="marcarComoEmUso()" class="btn btn-green">Confirmar Uso</button>
+            <button onclick="marcarComoDevolvido()" class="btn btn-gray">Marcar como Devolvido</button>
+            <button onclick="abrirFormCadastro()" class="btn btn-blue">Adicionar Novo</button>
+            <button onclick="abrirFormEdicao()" class="btn btn-yellow">Editar</button>
+            <button onclick="confirmarExclusao()" class="btn btn-red">Excluir</button>
         </div>
 
-        <!-- Formulário de cadastro/edição -->
         <div id="formCadastro" class="p-4 border rounded bg-white hidden">
-            <h4 class="font-semibold mb-3" id="tituloForm">Cadastro de Novo Equipamento</h4>
+            <h4 class="font-semibold mb-3" id="tituloForm">Cadastro de Equipamento</h4>
             <div class="grid md:grid-cols-2 gap-3">
-                <div>
-                    <input type="text" id="cadMarca" placeholder="Marca" class="p-2 border rounded w-full" title="Informe a marca do equipamento">
-                </div>
-                <div>
-                    <input type="text" id="cadModelo" placeholder="Modelo" class="p-2 border rounded w-full" title="Informe o modelo do equipamento">
-                </div>
-                <div>
-                    <input type="text" id="cadSerie" placeholder="Número de Série" class="p-2 border rounded w-full" title="Informe o número de série">
-                </div>
-                <div>
-                    <input type="text" id="cadPatrimonio" placeholder="Código de Patrimônio" class="p-2 border rounded w-full" title="Informe o código de patrimônio">
-                </div>
-                <div>
-                    <input type="text" id="cadAcessorios" placeholder="Acessórios" class="p-2 border rounded w-full" title="Informe os acessórios">
-                </div>
-                <div>
-                    <textarea id="cadEspecificacoes" placeholder="Especificações técnicas" rows="2" class="p-2 border rounded w-full" title="Descreva as especificações do equipamento"></textarea>
-                </div>
+                <div><input type="text" id="cadMarca" placeholder="Marca" class="p-2 border rounded w-full"></div>
+                <div><input type="text" id="cadModelo" placeholder="Modelo" class="p-2 border rounded w-full"></div>
+                <div><input type="text" id="cadSerie" placeholder="Número de Série" class="p-2 border rounded w-full"></div>
+                <div><input type="text" id="cadPatrimonio" placeholder="Patrimônio" class="p-2 border rounded w-full"></div>
+                <div><input type="text" id="cadAcessorios" placeholder="Acessórios" class="p-2 border rounded w-full"></div>
+                <div><textarea id="cadEspecificacoes" rows="2" placeholder="Especificações" class="p-2 border rounded w-full"></textarea></div>
             </div>
             <div class="mt-3 flex gap-2">
-                <button onclick="salvarEquipamento()" class="btn btn-green" title="Salvar dados do equipamento">Salvar</button>
-                <button onclick="fecharFormCadastro()" class="btn btn-gray" title="Cancelar">Cancelar</button>
+                <button onclick="salvarEquipamento()" class="btn btn-green">Salvar</button>
+                <button onclick="fecharFormCadastro()" class="btn btn-gray">Cancelar</button>
             </div>
+        </div>
+
+        <div class="area-bugs">
+            <h3 class="font-semibold mb-3">🐞 Relatório de Bugs</h3>
+            <textarea id="descricaoBug" rows="3" class="w-full p-2 border rounded mb-2" placeholder="Descreva o problema..."></textarea>
+            <button onclick="salvarBug()" class="btn btn-red">Enviar Relatório</button>
+            <div class="lista-bugs" id="listaBugs"></div>
         </div>
     </div>
 
-    <!-- PÁGINA PRINCIPAL - FORMULÁRIO ABERTO PARA TODOS -->
     <div class="max-w-5xl mx-auto">
         <div class="bg-white p-6 rounded-lg shadow-md mb-8 no-print">
-            <h2 class="text-xl font-bold mb-4 text-center">Solicitação e Preenchimento do Termo</h2>
+            <h2 class="text-xl font-bold mb-4 text-center">Preenchimento do Termo</h2>
 
-            <!-- Seleção de equipamento -->
             <div class="mb-5">
-                <label for="equipamentoEscolhido" class="block mb-2 font-medium">1. Selecione o Notebook:</label>
-                <select id="equipamentoEscolhido" class="w-full p-2 border rounded" onchange="preencherFormulario()" title="Escolha o equipamento que será entregue">
-                    <option value="">-- Selecione um equipamento --</option>
+                <label class="block mb-2 font-medium">1. Selecione o Notebook:</label>
+                <select id="equipamentoEscolhido" class="w-full p-2 border rounded" onchange="preencherFormulario()">
+                    <option value="">-- Selecione --</option>
                 </select>
-                <p class="text-xs text-gray-500 mt-1">* Os dados serão preenchidos automaticamente</p>
             </div>
 
             <div class="grid md:grid-cols-2 gap-5">
-                <!-- Dados do Responsável -->
                 <div>
                     <h3 class="font-semibold mb-3">Dados do Responsável</h3>
-                    <label for="nomeResp" class="block mb-1 obrigatorio">Nome completo:</label>
-                    <input type="text" id="nomeResp" class="w-full p-2 border rounded mb-2" required placeholder="Digite o nome completo" title="Nome completo do responsável">
-                    <div id="erro-nomeResp" class="mensagem-erro">Campo obrigatório</div>
-
-                    <label for="matricula" class="block mb-1 obrigatorio">Matrícula:</label>
-                    <input type="text" id="matricula" class="w-full p-2 border rounded mb-2" required placeholder="Digite o número da matrícula" title="Número de matrícula">
-                    <div id="erro-matricula" class="mensagem-erro">Campo obrigatório</div>
-
-                    <label for="cpf" class="block mb-1 obrigatorio">CPF:</label>
-                    <input type="text" id="cpf" class="w-full p-2 border rounded mb-2" required placeholder="000.000.000-00" title="CPF do responsável">
-                    <div id="erro-cpf" class="mensagem-erro">Campo obrigatório</div>
-
-                    <label for="cargoResp" class="block mb-1 obrigatorio">Cargo/Função:</label>
-                    <input type="text" id="cargoResp" class="w-full p-2 border rounded mb-2" required placeholder="Digite o cargo ou função" title="Cargo ou função exercida">
-                    <div id="erro-cargoResp" class="mensagem-erro">Campo obrigatório</div>
+                    <label class="block mb-1 obrigatorio">Nome completo:</label>
+                    <input type="text" id="nomeResp" class="w-full p-2 border rounded mb-2" required>
+                    <label class="block mb-1 obrigatorio">Matrícula:</label>
+                    <input type="text" id="matricula" class="w-full p-2 border rounded mb-2" required>
+                    <label class="block mb-1 obrigatorio">CPF:</label>
+                    <input type="text" id="cpf" class="w-full p-2 border rounded mb-2" required>
+                    <label class="block mb-1 obrigatorio">Cargo/Função:</label>
+                    <input type="text" id="cargoResp" class="w-full p-2 border rounded mb-2" required>
                 </div>
 
-                <!-- Dados da Entrega e Condição -->
                 <div>
                     <h3 class="font-semibold mb-3">Dados da Entrega</h3>
-                    <label for="dataEntrega" class="block mb-1 obrigatorio">Data da entrega:</label>
-                    <input type="date" id="dataEntrega" class="w-full p-2 border rounded mb-2" required title="Data em que o equipamento foi entregue">
-                    <div id="erro-dataEntrega" class="mensagem-erro">Campo obrigatório</div>
-
-                    <label for="condicao" class="block mb-1 obrigatorio">Condição do equipamento:</label>
-                    <select id="condicao" class="w-full p-2 border rounded mb-2" required title="Estado de conservação do equipamento">
+                    <label class="block mb-1 obrigatorio">Data da entrega:</label>
+                    <input type="date" id="dataEntrega" class="w-full p-2 border rounded mb-2" required>
+                    <label class="block mb-1 obrigatorio">Condição do equipamento:</label>
+                    <select id="condicao" class="w-full p-2 border rounded mb-2" required>
                         <option value="">Selecione</option>
                         <option value="Novo">Novo</option>
                         <option value="Bom estado de conservação">Bom estado de conservação</option>
                         <option value="Outro">Outro</option>
                     </select>
-                    <input type="text" id="condicaoOutro" class="w-full p-2 border rounded mb-2 hidden" placeholder="Descreva a condição" title="Descreva o estado do equipamento">
-
-                    <label for="observacoes" class="block mb-1">Observações:</label>
-                    <textarea id="observacoes" rows="2" class="w-full p-2 border rounded" placeholder="Informações adicionais, se necessário" title="Observações complementares"></textarea>
+                    <input type="text" id="condicaoOutro" class="w-full p-2 border rounded mb-2 hidden" placeholder="Descreva a condição">
+                    <label class="block mb-1">Observações:</label>
+                    <textarea id="observacoes" rows="2" class="w-full p-2 border rounded"></textarea>
                 </div>
             </div>
 
-            <div class="text-center mt-6">
-                <button onclick="validarEImprimir()" class="btn btn-green px-6 py-2" title="Gerar e visualizar o termo para impressão">📄 Gerar e Imprimir Termo</button>
+            <div class="text-center mt-6 flex gap-2 justify-center">
+                <button onclick="validarEImprimir()" class="btn btn-green px-6 py-2">🖨️ Visualizar / Imprimir</button>
+                <button onclick="gerarPDF()" class="btn btn-purple px-6 py-2">📄 Gerar e Baixar PDF</button>
             </div>
         </div>
 
-        <!-- Área do Documento Final - IGUAL AO PDF -->
-        <div class="documento bg-white p-8 shadow-lg rounded border border-gray-200">
+        <!-- DOCUMENTO FINAL - IGUAL AO MODELO DO PDF -->
+        <div class="documento bg-white p-8 shadow-lg rounded border border-gray-200" id="areaDocumento">
             <div id="documentoPreenchido">
-                <div class="text-center mb-8">
-                    <p class="font-bold text-lg">BELÉM</p>
-                    <h1 class="text-xl font-bold uppercase my-3">TERMO DE RESPONSABILIDADE, GUARDA E USO DE EQUIPAMENTO (NOTEBOOK)</h1>
-                    <p class="font-semibold" id="exibeNomeEscola">ESCOLA MUNICIPAL BOSQUE EIDORFE MOREIRA</p>
-                    <p id="exibeEnderecoCompleto">Ilha de Caratateua (Outeiro) – Belém/PA</p>
+                <div class="text-center mb-6">
+                    <p class="font-bold uppercase">BELÉM</p>
+                    <h1 class="text-lg font-bold uppercase my-3">TERMO DE RESPONSABILIDADE E GUARDA DE EQUIPAMENTO</h1>
+                    <p class="font-semibold" id="docNomeEscola"></p>
+                    <p id="docEndereco"></p>
+                    <h2 class="text-base font-bold uppercase my-3">TERMO DE RESPONSABILIDADE, GUARDA E USO DE EQUIPAMENTO (NOTEBOOK)</h2>
                 </div>
 
                 <p class="text-justify mb-4">
-                    Pelo presente instrumento, de um lado, a <strong>CEDENTE</strong> <span id="exibeNomeEscola2">Escola Municipal Bosque Eidorfe Moreira</span>, situada na <span id="exibeEnderecoCompleto2">Ilha de Caratateua (Outeiro), Belém/PA</span>, e, de outro lado, o(a) servidor(a) público(a) abaixo qualificado(a), doravante denominado(a) <strong>RESPONSÁVEL</strong>, firmam o presente Termo de Responsabilidade e Guarda de Equipamento, mediante as cláusulas e condições a seguir:
+                    Pelo presente instrumento, de um lado, a <strong>CEDENTE</strong> <span id="docNomeEscola2"></span>, situada na <span id="docEndereco2"></span>, Belém/PA, doravante denominada CEDENTE, e, de outro lado, o(a) servidor(a) público(a) abaixo qualificado(a), doravante denominado(a) <strong>RESPONSÁVEL</strong>, firmam o presente Termo de Responsabilidade e Guarda de Equipamento, mediante as cláusulas e condições a seguir:
                 </p>
 
-                <p class="mb-3"><strong>Nome:</strong> <span class="campo-preenchido" id="exibeNomeResp"></span></p>
-                <p class="mb-3"><strong>Matrícula:</strong> <span class="campo-preenchido" id="exibeMatricula"></span></p>
-                <p class="mb-3"><strong>CPF:</strong> <span class="campo-preenchido" id="exibeCpf"></span></p>
-                <p class="mb-6"><strong>Cargo/Função:</strong> <span class="campo-preenchido" id="exibeCargoResp"></span></p>
+                <p class="mb-2"><strong>Nome:</strong> <span class="campo-preenchido" id="docNomeResp"></span></p>
+                <p class="mb-2"><strong>Matrícula:</strong> <span class="campo-preenchido" id="docMatricula"></span></p>
+                <p class="mb-2"><strong>CPF:</strong> <span class="campo-preenchido" id="docCpf"></span></p>
+                <p class="mb-4"><strong>Cargo/Função:</strong> <span class="campo-preenchido" id="docCargoResp"></span></p>
 
-                <h3 class="font-bold my-4">CLÁUSULA PRIMEIRA – DO OBJETO</h3>
-                <p class="text-justify mb-4">
-                    O presente termo tem por objeto a entrega, pela CEDENTE ao(à) RESPONSÁVEL, do seguinte equipamento para utilização exclusiva em atividades funcionais relacionadas ao exercício de suas atribuições na <span id="exibeNomeEscola3">Escola Municipal Bosque Eidorfe Moreira</span>:
+                <h3 class="font-bold my-3">CLÁUSULA PRIMEIRA – DO OBJETO</h3>
+                <p class="text-justify mb-3">
+                    O presente termo tem por objeto a entrega, pela CEDENTE ao(à) RESPONSÁVEL, do seguinte equipamento para utilização exclusiva em atividades funcionais relacionadas ao exercício de suas atribuições na <span id="docNomeEscola3"></span>:
                 </p>
                 <p class="mb-2"><strong>Equipamento:</strong> Notebook</p>
-                <p class="mb-2"><strong>Marca:</strong> <span class="campo-preenchido" id="exibeMarca"></span></p>
-                <p class="mb-2"><strong>Modelo:</strong> <span class="campo-preenchido" id="exibeModelo"></span></p>
-                <p class="mb-2"><strong>Número de Série/Patrimônio:</strong> <span class="campo-preenchido" id="exibeSerie"></span></p>
-                <p class="mb-6"><strong>Acessórios:</strong> <span class="campo-preenchido" id="exibeAcessorios"></span></p>
+                <p class="mb-2"><strong>Marca:</strong> <span class="campo-preenchido" id="docMarca"></span></p>
+                <p class="mb-2"><strong>Modelo:</strong> <span class="campo-preenchido" id="docModelo"></span></p>
+                <p class="mb-2"><strong>Número de Série/Patrimônio:</strong> <span class="campo-preenchido" id="docSerie"></span></p>
+                <p class="mb-4"><strong>Acessórios:</strong> <span class="campo-preenchido" id="docAcessorios"></span></p>
 
-                <h3 class="font-bold my-4">CLÁUSULA SEGUNDA – DA FINALIDADE</h3>
-                <p class="text-justify mb-4">
+                <h3 class="font-bold my-3">CLÁUSULA SEGUNDA – DA FINALIDADE</h3>
+                <p class="text-justify mb-3">
                     O equipamento será utilizado exclusivamente para o desempenho das atividades institucionais e administrativas relacionadas ao serviço público exercido pelo(a) RESPONSÁVEL, vedada sua utilização para fins particulares que comprometam sua integridade, segurança ou disponibilidade.
                 </p>
 
-                <h3 class="font-bold my-4">CLÁUSULA TERCEIRA – DA GUARDA E CONSERVAÇÃO</h3>
-                <p class="text-justify mb-2">O(A) RESPONSÁVEL compromete-se a:</p>
+                <h3 class="font-bold my-3">CLÁUSULA TERCEIRA – DA GUARDA E CONSERVAÇÃO</h3>
+                <p class="mb-1">O(A) RESPONSÁVEL compromete-se a:</p>
                 <p class="mb-1">I – Zelar pela guarda, conservação e bom funcionamento do equipamento;</p>
                 <p class="mb-1">II – Utilizar o equipamento de forma adequada e compatível com sua finalidade;</p>
                 <p class="mb-1">III – Adotar medidas de segurança para evitar perdas, furtos, roubos, danos ou acesso não autorizado às informações nele armazenadas;</p>
                 <p class="mb-1">IV – Não ceder, emprestar ou transferir o equipamento a terceiros sem autorização expressa da direção da unidade escolar ou da autoridade competente;</p>
-                <p class="mb-6">V – Comunicar imediatamente à direção da escola qualquer ocorrência de defeito, dano, extravio, furto ou roubo do equipamento.</p>
+                <p class="mb-3">V – Comunicar imediatamente à direção da escola qualquer ocorrência de defeito, dano, extravio, furto ou roubo do equipamento.</p>
 
-                <h3 class="font-bold my-4">CLÁUSULA QUARTA – DA RESPONSABILIDADE</h3>
-                <p class="text-justify mb-4">
+                <h3 class="font-bold my-3">CLÁUSULA QUARTA – DA RESPONSABILIDADE</h3>
+                <p class="text-justify mb-3">
                     O(A) RESPONSÁVEL responderá pelo equipamento durante todo o período em que estiver sob sua guarda e utilização, comprometendo-se a devolvê-lo nas mesmas condições de uso em que o recebeu, ressalvado o desgaste natural decorrente da utilização regular.
                 </p>
-                <p class="text-justify mb-6">
+                <p class="text-justify mb-3">
                     Nos casos de dano, extravio, perda, furto ou roubo decorrentes de dolo, negligência, imprudência ou imperícia do(a) RESPONSÁVEL, poderão ser adotadas as medidas administrativas cabíveis, observada a legislação vigente e garantidos o contraditório e a ampla defesa.
                 </p>
 
-                <h3 class="font-bold my-4">CLÁUSULA QUINTA – DA DEVOLUÇÃO</h3>
-                <p class="text-justify mb-2">O equipamento deverá ser devolvido à <span id="exibeNomeEscola4">Escola Municipal Bosque Eidorfe Moreira</span>:</p>
+                <h3 class="font-bold my-3">CLÁUSULA QUINTA – DA DEVOLUÇÃO</h3>
+                <p class="mb-1">O equipamento deverá ser devolvido à <span id="docNomeEscola4"></span>:</p>
                 <p class="mb-1">a) Quando houver desligamento, exoneração, aposentadoria, remoção, cessão ou qualquer forma de afastamento definitivo da unidade escolar;</p>
                 <p class="mb-1">b) Sempre que solicitado pela Administração;</p>
-                <p class="mb-4">c) Ao término da necessidade de utilização do equipamento.</p>
-                <p class="text-justify mb-6">A devolução deverá ocorrer mediante conferência do estado do bem e registro formal de recebimento.</p>
+                <p class="mb-2">c) Ao término da necessidade de utilização do equipamento.</p>
+                <p class="text-justify mb-3">A devolução deverá ocorrer mediante conferência do estado do bem e registro formal de recebimento.</p>
 
-                <h3 class="font-bold my-4">CLÁUSULA SEXTA – DA VIGÊNCIA</h3>
-                <p class="text-justify mb-6">
-                    O presente termo vigorará pelo período em que o(a) RESPONSÁVEL permanecer lotado(a) e em efetivo exercício na <span id="exibeNomeEscola5">Escola Municipal Bosque Eidorfe Moreira</span>, mantendo a posse e utilização do equipamento para fins funcionais.
+                <h3 class="font-bold my-3">CLÁUSULA SEXTA – DA VIGÊNCIA</h3>
+                <p class="text-justify mb-3">
+                    O presente termo vigorará pelo período em que o(a) RESPONSÁVEL permanecer lotado(a) e em efetivo exercício na <span id="docNomeEscola5"></span>, mantendo a posse e utilização do equipamento para fins funcionais.
                 </p>
 
-                <h3 class="font-bold my-4">CLÁUSULA SÉTIMA – DAS DISPOSIÇÕES FINAIS</h3>
-                <p class="text-justify mb-6">
+                <h3 class="font-bold my-3">CLÁUSULA SÉTIMA – DAS DISPOSIÇÕES FINAIS</h3>
+                <p class="text-justify mb-4">
                     O(A) RESPONSÁVEL declara ter recebido o equipamento em perfeitas condições de uso, comprometendo-se a observar todas as normas de utilização, segurança e conservação aplicáveis aos bens públicos.
                 </p>
 
-                <p class="text-justify mb-6">
+                <p class="text-justify mb-5">
                     Por estarem de acordo, firmam o presente Termo de Responsabilidade e Guarda de Equipamento em duas vias de igual teor e forma.
                 </p>
 
-                <p class="text-center mb-8">Belém/PA, <span class="campo-preenchido" id="exibeDia"></span> de <span class="campo-preenchido" id="exibeMes"></span> de <span class="campo-preenchido" id="exibeAno"></span>.</p>
+                <p class="text-center mb-6">Belém/PA, <span class="campo-preenchido" id="docDia"></span> de <span class="campo-preenchido" id="docMes"></span> de <span class="campo-preenchido" id="docAno"></span>.</p>
 
-                <div class="grid md:grid-cols-2 gap-10 mb-8">
-                    <div class="text-center">
-                        <p class="font-semibold mb-4">RESPONSÁVEL PELO EQUIPAMENTO</p>
-                        <p>Nome: _________________________________________________</p>
-                        <p class="mt-6">Assinatura: ___________________________________________</p>
-                        <p class="mt-4">CPF: <span class="campo-preenchido" id="exibeCpfAssinatura"></span></p>
+                <div class="grid md:grid-cols-2 gap-10 text-center mb-6">
+                    <div>
+                        <p class="font-semibold mb-3">RESPONSÁVEL PELO EQUIPAMENTO</p>
+                        <p>Nome: <span class="campo-preenchido" id="docNomeRespAssinatura"></span></p>
+                        <p class="mt-4">Assinatura: ___________________________________________</p>
+                        <p class="mt-3">CPF: <span class="campo-preenchido" id="docCpfAssinatura"></span></p>
                     </div>
-                    <div class="text-center">
-                        <p class="font-semibold mb-4">DIREÇÃO / REPRESENTANTE DA UNIDADE ESCOLAR</p>
-                        <p>Nome: _________________________________________________</p>
-                        <p class="mt-2"><span class="campo-preenchido" id="exibeNomeDiretor"></span></p>
-                        <p class="mt-4">Cargo: _________________________________________________</p>
-                        <p class="mt-2"><span class="campo-preenchido" id="exibeCargoDiretor"></span></p>
-                        <p class="mt-6">Assinatura: ___________________________________________</p>
+                    <div>
+                        <p class="font-semibold mb-3">DIREÇÃO / REPRESENTANTE DA UNIDADE ESCOLAR</p>
+                        <p>Nome: <span class="campo-preenchido" id="docNomeDiretor"></span></p>
+                        <p class="mt-3">Cargo: <span class="campo-preenchido" id="docCargoDiretor"></span></p>
+                        <p class="mt-4">Assinatura: ___________________________________________</p>
                     </div>
                 </div>
 
-                <div class="mt-8 border-t pt-4">
-                    <h4 class="font-semibold mb-3">DADOS DA ENTREGA</h4>
-                    <p class="mb-2">Data da entrega: <span class="campo-preenchido" id="exibeDataEntrega"></span></p>
-                    <p class="mb-2">Condição do equipamento no ato da entrega:</p>
-                    <p class="mb-2">( ) Novo</p>
-                    <p class="mb-2">( ) Bom estado de conservação</p>
-                    <p class="mb-2">( ) Outro: <span class="campo-preenchido" id="exibeCondicaoOutro"></span></p>
-                    <p class="mt-3"><strong>Observações:</strong> <span id="exibeObservacoesImpresso">Nenhuma observação.</span></p>
+                <div class="mt-5 border-t pt-4">
+                    <h4 class="font-semibold mb-2">DADOS DA ENTREGA</h4>
+                    <p class="mb-1">Data da entrega: <span class="campo-preenchido" id="docDataEntrega"></span></p>
+                    <p class="mb-1">Condição do equipamento no ato da entrega:</p>
+                    <p class="mb-1">( ) Novo <span id="condNovo" class="ml-2"></span></p>
+                    <p class="mb-1">( ) Bom estado de conservação <span id="condBom" class="ml-2"></span></p>
+                    <p class="mb-1">( ) Outro: <span class="campo-preenchido" id="docCondicaoOutro"></span></p>
+                    <p class="mt-2"><strong>Observações:</strong> <span id="docObservacoes"></span></p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --------------------------
-        // CONFIGURAÇÕES
-        // --------------------------
         const acessoGerenciador = { usuario: "admin", senha: "escola2026" };
-        let idEmEdicao = null;
-
-        let listaEquipamentos = [
-            {
-                id: 1, marca: "Dell", modelo: "Inspiron 15 3000", serie: "D123456789", patrimonio: "EQP-001",
-                acessorios: "Carregador original, bolsa de proteção", especificacoes: "Processador Intel Core i5 11ª Geração | 8GB RAM | SSD 256GB | Windows 11 Pro", disponivel: true
-            },
-            {
-                id: 2, marca: "Lenovo", modelo: "ThinkPad E15", serie: "L987654321", patrimonio: "EQP-002",
-                acessorios: "Carregador original", especificacoes: "Processador Intel Core i7 10ª Geração | 16GB RAM | SSD 512GB | Windows 11 Pro", disponivel: true
-            },
-            {
-                id: 3, marca: "HP", modelo: "Pavilion 14", serie: "H456789123", patrimonio: "EQP-003",
-                acessorios: "Carregador original, mouse sem fio", especificacoes: "Processador AMD Ryzen 5 | 8GB RAM | SSD 256GB | Windows 11 Home", disponivel: false
-            }
-        ];
-
-        let dadosDiretoria = {
+        let listaEquipamentos = JSON.parse(localStorage.getItem("equipamentos")) || [];
+        let dadosDiretoria = JSON.parse(localStorage.getItem("dadosDiretoria")) || {
             nomeEscola: "ESCOLA MUNICIPAL BOSQUE EIDORFE MOREIRA",
-            endereco: "Ilha de Caratateua",
+            endereco: "Ilha de Caratateua (Outeiro)",
             cidadeEstado: "Belém / PA",
             telefone: "(91) 3222-1234",
             nomeDiretor: "Maria da Silva Santos",
             cargoDiretor: "Diretora Escolar"
         };
+        let listaBugs = JSON.parse(localStorage.getItem("bugs")) || [];
+        let idEmEdicao = null;
 
-        // --------------------------
-        // GERENCIAMENTO DE ACESSO
-        // --------------------------
         function abrirLoginGerenciador() {
             document.getElementById('modalLogin').style.display = 'flex';
             document.getElementById('erroLogin').style.display = 'none';
@@ -508,8 +445,7 @@
             if (user === acessoGerenciador.usuario && senha === acessoGerenciador.senha) {
                 fecharLoginGerenciador();
                 document.getElementById('areaGerenciador').style.display = 'block';
-                carregarListasEquipamentos();
-                carregarDadosDiretoria();
+                carregarDados();
             } else {
                 document.getElementById('erroLogin').style.display = 'block';
             }
@@ -517,22 +453,10 @@
 
         function sairAreaGerenciador() {
             document.getElementById('areaGerenciador').style.display = 'none';
-            idEmEdicao = null;
         }
 
-        // --------------------------
-        // GERENCIAMENTO DA DIRETORIA
-        // --------------------------
-        function carregarDadosDiretoria() {
-            document.getElementById('nomeEscola').value = dadosDiretoria.nomeEscola;
-            document.getElementById('enderecoEscola').value = dadosDiretoria.endereco;
-            document.getElementById('cidadeEstado').value = dadosDiretoria.cidadeEstado;
-            document.getElementById('telefoneEscola').value = dadosDiretoria.telefone;
-            document.getElementById('nomeDiretorAdmin').value = dadosDiretoria.nomeDiretor;
-            document.getElementById('cargoDiretorAdmin').value = dadosDiretoria.cargoDiretor;
-            
-            document.getElementById('nomeDiretor').value = dadosDiretoria.nomeDiretor;
-            document.getElementById('cargoDiretor').value = dadosDiretoria.cargoDiretor;
+        function salvarEquipamentos() {
+            localStorage.setItem("equipamentos", JSON.stringify(listaEquipamentos));
         }
 
         function salvarDadosDiretoria() {
@@ -544,53 +468,53 @@
                 nomeDiretor: document.getElementById('nomeDiretorAdmin').value.trim(),
                 cargoDiretor: document.getElementById('cargoDiretorAdmin').value.trim()
             };
-
-            document.getElementById('nomeDiretor').value = dadosDiretoria.nomeDiretor;
-            document.getElementById('cargoDiretor').value = dadosDiretoria.cargoDiretor;
-            
-            alert("✅ Dados da Direção/Representante salvos com sucesso!");
+            localStorage.setItem("dadosDiretoria", JSON.stringify(dadosDiretoria));
+            carregarDadosDiretoria();
+            alert("✅ Dados salvos com sucesso!");
         }
 
-        // --------------------------
-        // FUNÇÃO DE TESTE PARA ADMIN
-        // --------------------------
-        function preencherTeste() {
-            document.getElementById('nomeResp').value = "João da Costa Pereira";
-            document.getElementById('matricula').value = "202600123";
-            document.getElementById('cpf').value = "123.456.789-00";
-            document.getElementById('cargoResp').value = "Professor de Matemática";
-            
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('dataEntrega').value = hoje;
-            
-            document.getElementById('condicao').value = "Bom estado de conservação";
-            document.getElementById('observacoes').value = "Equipamento entregue para uso durante o ano letivo de 2026.";
-            
-            const selectEqp = document.getElementById('equipamentoEscolhido');
-            if (selectEqp.options.length > 1) {
-                selectEqp.selectedIndex = 1;
-                preencherFormulario();
-            }
-
-            alert("✅ Todos os campos foram preenchidos com dados de exemplo!");
+        function salvarBug() {
+            const desc = document.getElementById('descricaoBug').value.trim();
+            if (!desc) return alert("Descreva o erro antes de enviar!");
+            listaBugs.unshift({ data: new Date().toLocaleString(), descricao: desc });
+            localStorage.setItem("bugs", JSON.stringify(listaBugs));
+            document.getElementById('descricaoBug').value = '';
+            atualizarListaBugs();
+            alert("✅ Relatório enviado!");
         }
 
-        // --------------------------
-        // FUNÇÕES DE EQUIPAMENTOS
-        // --------------------------
+        function atualizarListaBugs() {
+            const div = document.getElementById('listaBugs');
+            div.innerHTML = listaBugs.length === 0 ? "<p class='text-gray-500'>Nenhum relatório enviado.</p>" : "";
+            listaBugs.forEach(b => div.innerHTML += `<div class='border-b py-1 text-sm'><strong>${b.data}</strong><br>${b.descricao}</div>`);
+        }
+
+        function carregarDados() {
+            carregarListasEquipamentos();
+            carregarDadosDiretoria();
+            atualizarListaBugs();
+        }
+
+        function carregarDadosDiretoria() {
+            document.getElementById('nomeEscola').value = dadosDiretoria.nomeEscola;
+            document.getElementById('enderecoEscola').value = dadosDiretoria.endereco;
+            document.getElementById('cidadeEstado').value = dadosDiretoria.cidadeEstado;
+            document.getElementById('telefoneEscola').value = dadosDiretoria.telefone;
+            document.getElementById('nomeDiretorAdmin').value = dadosDiretoria.nomeDiretor;
+            document.getElementById('cargoDiretorAdmin').value = dadosDiretoria.cargoDiretor;
+        }
+
         function carregarListasEquipamentos() {
             const selectForm = document.getElementById('equipamentoEscolhido');
             const selectGer = document.getElementById('selecionarEquipamento');
             selectForm.innerHTML = '<option value="">-- Selecione --</option>';
             selectGer.innerHTML = '<option value="">-- Selecione --</option>';
-
             listaEquipamentos.forEach(eq => {
                 const status = eq.disponivel ? "✅ Disponível" : "❌ Em uso";
                 const opt = `<option value="${eq.id}">${eq.marca} ${eq.modelo} | ${eq.patrimonio} - ${status}</option>`;
                 selectForm.innerHTML += opt;
                 selectGer.innerHTML += opt;
             });
-
             atualizarStatus();
         }
 
@@ -611,32 +535,11 @@
             document.getElementById('modelo').value = eq.modelo;
             document.getElementById('serie').value = `${eq.serie} | ${eq.patrimonio}`;
             document.getElementById('acessorios').value = eq.acessorios;
-            document.getElementById('especificacoes').value = eq.especificacoes;
-        }
-
-        function marcarComoEmUso() {
-            const id = parseInt(document.getElementById('selecionarEquipamento').value);
-            if (!id) return alert("Selecione um equipamento!");
-            const eq = listaEquipamentos.find(e => e.id === id);
-            if (!eq.disponivel) return alert("Já está em uso!");
-            eq.disponivel = false;
-            carregarListasEquipamentos();
-            alert("Equipamento marcado como em uso!");
-        }
-
-        function marcarComoDevolvido() {
-            const id = parseInt(document.getElementById('selecionarEquipamento').value);
-            if (!id) return alert("Selecione um equipamento!");
-            const eq = listaEquipamentos.find(e => e.id === id);
-            if (eq.disponivel) return alert("Já está disponível!");
-            eq.disponivel = true;
-            carregarListasEquipamentos();
-            alert("Equipamento devolvido!");
         }
 
         function abrirFormCadastro() {
             idEmEdicao = null;
-            document.getElementById('tituloForm').textContent = "Cadastro de Novo Equipamento";
+            document.getElementById('tituloForm').textContent = "Cadastro de Equipamento";
             limparCamposFormulario();
             document.getElementById('formCadastro').classList.remove('hidden');
         }
@@ -646,17 +549,14 @@
             if (!id) return alert("Selecione um equipamento primeiro!");
             const eq = listaEquipamentos.find(e => e.id === id);
             if (!eq) return;
-
             idEmEdicao = id;
             document.getElementById('tituloForm').textContent = "Editar Equipamento";
-            
             document.getElementById('cadMarca').value = eq.marca;
             document.getElementById('cadModelo').value = eq.modelo;
             document.getElementById('cadSerie').value = eq.serie;
             document.getElementById('cadPatrimonio').value = eq.patrimonio;
             document.getElementById('cadAcessorios').value = eq.acessorios;
-            document.getElementById('cadEspecificacoes').value = eq.especificacoes;
-
+            document.getElementById('cadEspecificacoes').value = eq.especificacoes || '';
             document.getElementById('formCadastro').classList.remove('hidden');
         }
 
@@ -672,7 +572,6 @@
         function fecharFormCadastro() {
             document.getElementById('formCadastro').classList.add('hidden');
             limparCamposFormulario();
-            idEmEdicao = null;
         }
 
         function salvarEquipamento() {
@@ -681,54 +580,89 @@
             const serie = document.getElementById('cadSerie').value.trim();
             const patrimonio = document.getElementById('cadPatrimonio').value.trim();
             const acessorios = document.getElementById('cadAcessorios').value.trim();
-            const especificacoes = document.getElementById('cadEspecificacoes').value.trim();
-
-            if (!marca || !modelo || !patrimonio) return alert("Preencha os dados principais: Marca, Modelo e Patrimônio!");
-
+            if (!marca || !modelo || !patrimonio) return alert("Preencha Marca, Modelo e Patrimônio!");
             if (idEmEdicao) {
-                const index = listaEquipamentos.findIndex(e => e.id === idEmEdicao);
-                if (index !== -1) {
-                    listaEquipamentos[index] = {
-                        ...listaEquipamentos[index],
-                        marca, modelo, serie, patrimonio, acessorios, especificacoes
-                    };
-                    alert("Equipamento atualizado com sucesso!");
-                }
+                const idx = listaEquipamentos.findIndex(e => e.id === idEmEdicao);
+                if (idx !== -1) listaEquipamentos[idx] = { ...listaEquipamentos[idx], marca, modelo, serie, patrimonio, acessorios };
             } else {
-                const novo = {
-                    id: Date.now(),
-                    marca, modelo, serie, patrimonio, acessorios, especificacoes,
-                    disponivel: true
-                };
-                listaEquipamentos.push(novo);
-                alert("Equipamento cadastrado com sucesso!");
+                listaEquipamentos.push({ id: Date.now(), marca, modelo, serie, patrimonio, acessorios, disponivel: true });
             }
-
+            salvarEquipamentos();
             carregarListasEquipamentos();
             fecharFormCadastro();
+            alert("✅ Equipamento salvo com sucesso!");
         }
 
         function confirmarExclusao() {
             const id = parseInt(document.getElementById('selecionarEquipamento').value);
-            if (!id) return alert("Selecione um equipamento primeiro!");
-            const eq = listaEquipamentos.find(e => e.id === id);
-            if (!eq) return;
-
-            if (!confirm(`Tem certeza que deseja excluir o equipamento ${eq.marca} ${eq.modelo} (${eq.patrimonio})?\nEsta ação não pode ser desfeita!`)) return;
-
+            if (!id) return alert("Selecione um equipamento!");
+            if (!confirm("Tem certeza que deseja excluir este equipamento?")) return;
             listaEquipamentos = listaEquipamentos.filter(e => e.id !== id);
+            salvarEquipamentos();
             carregarListasEquipamentos();
-            alert("Equipamento excluído com sucesso!");
         }
 
-        // --------------------------
-        // FUNÇÕES AUXILIARES E IMPRESSÃO
-        // --------------------------
+        function marcarComoEmUso() {
+            const id = parseInt(document.getElementById('selecionarEquipamento').value);
+            if (!id) return alert("Selecione um equipamento!");
+            const eq = listaEquipamentos.find(e => e.id === id);
+            if (!eq.disponivel) return alert("Este equipamento já está em uso!");
+            eq.disponivel = false;
+            salvarEquipamentos();
+            carregarListasEquipamentos();
+        }
+
+        function marcarComoDevolvido() {
+            const id = parseInt(document.getElementById('selecionarEquipamento').value);
+            if (!id) return alert("Selecione um equipamento!");
+            const eq = listaEquipamentos.find(e => e.id === id);
+            if (eq.disponivel) return alert("Este equipamento já está disponível!");
+            eq.disponivel = true;
+            salvarEquipamentos();
+            carregarListasEquipamentos();
+        }
+
+        function preencherTeste() {
+            document.getElementById('nomeResp').value = "João da Costa Pereira";
+            document.getElementById('matricula').value = "202600123";
+            document.getElementById('cpf').value = "123.456.789-00";
+            document.getElementById('cargoResp').value = "Professor de Matemática";
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('dataEntrega').value = hoje;
+            document.getElementById('condicao').value = "Bom estado de conservação";
+            document.getElementById('observacoes').value = "Equipamento entregue para uso no ano letivo de 2026.";
+            if (listaEquipamentos.length > 0) {
+                document.getElementById('equipamentoEscolhido').selectedIndex = 1;
+                preencherFormulario();
+            }
+            alert("✅ Preenchido com dados de teste!");
+        }
+
         document.getElementById('condicao').addEventListener('change', function() {
             document.getElementById('condicaoOutro').classList.toggle('hidden', this.value !== 'Outro');
         });
 
         function validarEImprimir() {
+            if (!validarCampos()) return;
+            atualizarDocumento();
+            setTimeout(() => window.print(), 200);
+        }
+
+        async function gerarPDF() {
+            if (!validarCampos()) return;
+            atualizarDocumento();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            const elemento = document.getElementById('areaDocumento');
+            const canvas = await html2canvas(elemento, { scale: 2, useCORS: true, logging: false });
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            doc.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+            doc.save(`Termo_Responsabilidade_${new Date().toISOString().slice(0,10)}.pdf`);
+        }
+
+        function validarCampos() {
             let ok = true;
             const campos = ['nomeResp','matricula','cpf','cargoResp','equipamentoEscolhido','dataEntrega','condicao'];
             campos.forEach(id => {
@@ -736,56 +670,51 @@
                 if (!el.value.trim()) { el.classList.add('invalido'); ok = false; }
                 else el.classList.remove('invalido');
             });
-            if (!ok) return alert("Preencha todos os campos obrigatórios!");
-            atualizarDocumento();
-            setTimeout(() => window.print(), 200);
+            if (!ok) alert("Preencha todos os campos obrigatórios!");
+            return ok;
         }
 
         function atualizarDocumento() {
             const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-            const dataEnt = document.getElementById('dataEntrega').value.split('-');
-            
-            // Dados da escola
-            document.getElementById('exibeNomeEscola').textContent = dadosDiretoria.nomeEscola;
-            document.getElementById('exibeNomeEscola2').textContent = dadosDiretoria.nomeEscola;
-            document.getElementById('exibeNomeEscola3').textContent = dadosDiretoria.nomeEscola;
-            document.getElementById('exibeNomeEscola4').textContent = dadosDiretoria.nomeEscola;
-            document.getElementById('exibeNomeEscola5').textContent = dadosDiretoria.nomeEscola;
-            
-            document.getElementById('exibeEnderecoCompleto').textContent = `${dadosDiretoria.endereco} – ${dadosDiretoria.cidadeEstado}`;
-            document.getElementById('exibeEnderecoCompleto2').textContent = `${dadosDiretoria.endereco}, ${dadosDiretoria.cidadeEstado}`;
-
-            // Data do termo
             const hoje = new Date();
-            document.getElementById('exibeDia').textContent = hoje.getDate().toString().padStart(2, '0');
-            document.getElementById('exibeMes').textContent = meses[hoje.getMonth()];
-            document.getElementById('exibeAno').textContent = hoje.getFullYear();
+            const dtEnt = document.getElementById('dataEntrega').value.split('-');
 
-            // Dados do responsável
-            document.getElementById('exibeNomeResp').textContent = document.getElementById('nomeResp').value;
-            document.getElementById('exibeMatricula').textContent = document.getElementById('matricula').value;
-            document.getElementById('exibeCpf').textContent = document.getElementById('cpf').value;
-            document.getElementById('exibeCpfAssinatura').textContent = document.getElementById('cpf').value;
-            document.getElementById('exibeCargoResp').textContent = document.getElementById('cargoResp').value;
+            document.getElementById('docNomeEscola').textContent = dadosDiretoria.nomeEscola;
+            document.getElementById('docNomeEscola2').textContent = dadosDiretoria.nomeEscola;
+            document.getElementById('docNomeEscola3').textContent = dadosDiretoria.nomeEscola;
+            document.getElementById('docNomeEscola4').textContent = dadosDiretoria.nomeEscola;
+            document.getElementById('docNomeEscola5').textContent = dadosDiretoria.nomeEscola;
+            document.getElementById('docEndereco').textContent = `${dadosDiretoria.endereco} – ${dadosDiretoria.cidadeEstado}`;
+            document.getElementById('docEndereco2').textContent = `${dadosDiretoria.endereco}`;
 
-            // Dados do equipamento
-            document.getElementById('exibeMarca').textContent = document.getElementById('marca').value;
-            document.getElementById('exibeModelo').textContent = document.getElementById('modelo').value;
-            document.getElementById('exibeSerie').textContent = document.getElementById('serie').value;
-            document.getElementById('exibeAcessorios').textContent = document.getElementById('acessorios').value;
+            document.getElementById('docDia').textContent = hoje.getDate().toString().padStart(2, '0');
+            document.getElementById('docMes').textContent = meses[hoje.getMonth()];
+            document.getElementById('docAno').textContent = hoje.getFullYear();
+            document.getElementById('docDataEntrega').textContent = `${dtEnt[2]}/${dtEnt[1]}/${dtEnt[0]}`;
 
-            // Dados da direção
-            document.getElementById('exibeNomeDiretor').textContent = dadosDiretoria.nomeDiretor;
-            document.getElementById('exibeCargoDiretor').textContent = dadosDiretoria.cargoDiretor;
+            document.getElementById('docNomeResp').textContent = document.getElementById('nomeResp').value;
+            document.getElementById('docNomeRespAssinatura').textContent = document.getElementById('nomeResp').value;
+            document.getElementById('docMatricula').textContent = document.getElementById('matricula').value;
+            document.getElementById('docCpf').textContent = document.getElementById('cpf').value;
+            document.getElementById('docCpfAssinatura').textContent = document.getElementById('cpf').value;
+            document.getElementById('docCargoResp').textContent = document.getElementById('cargoResp').value;
 
-            // Dados da entrega
-            document.getElementById('exibeDataEntrega').textContent = `${dataEnt[2]}/${dataEnt[1]}/${dataEnt[0]}`;
+            document.getElementById('docMarca').textContent = document.getElementById('marca').value;
+            document.getElementById('docModelo').textContent = document.getElementById('modelo').value;
+            document.getElementById('docSerie').textContent = document.getElementById('serie').value;
+            document.getElementById('docAcessorios').textContent = document.getElementById('acessorios').value;
+
+            document.getElementById('docNomeDiretor').textContent = dadosDiretoria.nomeDiretor;
+            document.getElementById('docCargoDiretor').textContent = dadosDiretoria.cargoDiretor;
+
             const cond = document.getElementById('condicao').value;
-            document.getElementById('exibeCondicaoOutro').textContent = cond === 'Outro' ? document.getElementById('condicaoOutro').value : '';
-            document.getElementById('exibeObservacoesImpresso').textContent = document.getElementById('observacoes').value || 'Nenhuma observação.';
+            document.getElementById('condNovo').textContent = cond === 'Novo' ? '☑' : '';
+            document.getElementById('condBom').textContent = cond === 'Bom estado de conservação' ? '☑' : '';
+            document.getElementById('docCondicaoOutro').textContent = cond === 'Outro' ? document.getElementById('condicaoOutro').value : '';
+            document.getElementById('docObservacoes').textContent = document.getElementById('observacoes').value || 'Nenhuma observação.';
         }
 
-        window.onload = carregarListasEquipamentos;
+        window.onload = carregarDados;
     </script>
 </body>
 </html>
